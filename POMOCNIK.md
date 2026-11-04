@@ -22,6 +22,10 @@ Pliki upstreamu zostają bez zmian (łatwe dociąganie nowych wersji). Nasze są
 - `docker/browser/`: obraz `browser` (Playwright MCP, headless Chromium) — serwer MCP „Przeglądarka” dla agentów
   (`librechat.yaml`, `mcpServers.browser`); osobny kontekst przeglądarki na użytkownika, ruch wychodzący
   tylko do internetu (NetworkPolicy `egress: internet` w `platform-gitops`).
+- `docker/admin-panel/`: obraz `admin-panel` (LibreChat Admin Panel, AGPL-3.0, obraz upstream przypięty do commita):
+  role, grupy, uprawnienia (grants), konfiguracja per rola/grupa; osobny host `pomocnik-admin[.dev].lucasnextgen.com`,
+  logowanie kontem admina LibreChat. Kont użytkowników nie tworzy (API LibreChat 0.8.8 nie ma takiej operacji).
+  Przy aktualizacji LibreChat podnieś też commit panelu zgodny z nową wersją pakietów `librechat-data-provider`.
 - `.github/`: CI ze wspólnych workflowów `lrozewicz/.github` (workflowy upstreamu usunięte).
 
 ## Aktualizacja LibreChat

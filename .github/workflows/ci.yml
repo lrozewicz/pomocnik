@@ -2,8 +2,9 @@
 #   pull request     -> tests, image build, Trivy
 #   push to main     -> build, push to Harbor, deploy to pomocnik.dev.lucasnextgen.com
 #   tag v1.2.3       -> promote the same images, deploy to pomocnik.lucasnextgen.com
-# Three images, one tag: api (LibreChat, docker/pomocnik/Dockerfile), mongo (docker/mongo/Dockerfile)
-# and browser (Playwright MCP for agents, docker/browser/Dockerfile).
+# Four images, one tag: api (LibreChat, docker/pomocnik/Dockerfile), mongo (docker/mongo/Dockerfile),
+# browser (Playwright MCP for agents, docker/browser/Dockerfile) and admin-panel (LibreChat Admin
+# Panel, docker/admin-panel/Dockerfile).
 # The upstream LibreChat workflows were removed (they would run in this repo and use its Actions minutes).
 name: CI
 
@@ -26,7 +27,8 @@ jobs:
         [
           {"name": "api", "context": ".", "dockerfile": "docker/pomocnik/Dockerfile"},
           {"name": "mongo", "context": "docker/mongo", "dockerfile": "docker/mongo/Dockerfile", "test": false},
-          {"name": "browser", "context": "docker/browser", "dockerfile": "docker/browser/Dockerfile", "test": false}
+          {"name": "browser", "context": "docker/browser", "dockerfile": "docker/browser/Dockerfile", "test": false},
+          {"name": "admin-panel", "context": "docker/admin-panel", "dockerfile": "docker/admin-panel/Dockerfile", "test": false}
         ]
 
   deploy:
@@ -38,7 +40,8 @@ jobs:
         [
           {"name": "api", "context": ".", "dockerfile": "docker/pomocnik/Dockerfile"},
           {"name": "mongo", "context": "docker/mongo", "dockerfile": "docker/mongo/Dockerfile", "test": false},
-          {"name": "browser", "context": "docker/browser", "dockerfile": "docker/browser/Dockerfile", "test": false}
+          {"name": "browser", "context": "docker/browser", "dockerfile": "docker/browser/Dockerfile", "test": false},
+          {"name": "admin-panel", "context": "docker/admin-panel", "dockerfile": "docker/admin-panel/Dockerfile", "test": false}
         ]
     secrets:
       HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
