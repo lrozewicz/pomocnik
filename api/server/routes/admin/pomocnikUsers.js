@@ -14,6 +14,8 @@
  * A generated password is returned once and never stored in clear text.
  */
 const express = require('express');
+const rateLimit = require('express-rate-limit');
+const { limiterCache, removePorts } = require('@librechat/api');
 const { logger, SystemCapabilities } = require('@librechat/data-schemas');
 const { requireCapability } = require('~/server/middleware/roles/capabilities');
 const { requireJwtAuth } = require('~/server/middleware');
@@ -23,9 +25,18 @@ const router = express.Router();
 const requireReadUsers = requireCapability(SystemCapabilities.READ_USERS);
 const requireManageUsers = requireCapability(SystemCapabilities.MANAGE_USERS);
 
-router.use(requireJwtAuth, requireCapability(SystemCapabilities.ACCESS_ADMIN));
-
 const actorId = (req) => req.user?._id?.toString() ?? req.user?.id;
+
+/** Per admin: 60 requests a minute (password resets hash with bcrypt, deletions run a script). */
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  keyGenerator: (req) => actorId(req) ?? removePorts(req),
+  store: limiterCache('pomocnik_admin_users_limiter'),
+  handler: (_req, res) => res.status(429).json({ error: 'Too many requests, try again in a minute' }),
+});
+
+router.use(requireJwtAuth, requireCapability(SystemCapabilities.ACCESS_ADMIN), limiter);
 
 /** Wraps a handler: UserAdminError -> its status, anything else -> 500. */
 const handle = (fn) => async (req, res) => {
