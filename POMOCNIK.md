@@ -1,6 +1,6 @@
 # Pomocnik
 
-Prywatna kopia [LibreChat](https://github.com/danny-avila/LibreChat) wdrażana na platformę OVH
+Kopia [LibreChat](https://github.com/danny-avila/LibreChat) wdrażana na platformę OVH
 (Rancher + Argo CD + Harbor):
 
 | Środowisko | Adres | Wdrożenie |

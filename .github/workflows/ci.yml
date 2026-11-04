@@ -1,6 +1,6 @@
 # CI/CD: shared workflows from github.com/lrozewicz/.github
 #   pull request     -> tests, image build, Trivy
-#   push to main     -> build, push to Harbor (private project "pomocnik"), deploy to pomocnik.dev.lucasnextgen.com
+#   push to main     -> build, push to Harbor, deploy to pomocnik.dev.lucasnextgen.com
 #   tag v1.2.3       -> promote the same images, deploy to pomocnik.lucasnextgen.com
 # Two images, one tag: api (LibreChat, docker/pomocnik/Dockerfile) and mongo (docker/mongo/Dockerfile).
 # The upstream LibreChat workflows were removed (they would run in this repo and use its Actions minutes).
