@@ -1,8 +1,10 @@
 /**
  * Server functions for user management.
  *
- * Calls the LibreChat Admin API (/api/admin/users) for list, search, and delete.
- * Create user is not yet wired.
+ * Calls the LibreChat Admin API (/api/admin/users) for list, search, and delete,
+ * and Pomocnik's additions on the same prefix (LibreChat 0.8.8 itself only lists
+ * and searches): create, edit, password reset, suspend and the account status
+ * list. A generated password comes back once and is shown to the admin once.
  */
 
 import { z } from 'zod';
@@ -11,6 +13,7 @@ import { SystemRoles } from 'librechat-data-provider';
 import { createServerFn } from '@tanstack/react-start';
 import type { AdminUserSearchResult } from '@librechat/data-schemas';
 import type { TUser } from 'librechat-data-provider';
+import type * as t from '@/types';
 import { apiFetch, extractApiError } from './utils/api';
 import { USER_DELETE_UNAVAILABLE } from '@/constants';
 
@@ -33,6 +36,36 @@ export const usersQueryOptions = queryOptions({
   staleTime: 30_000,
 });
 
+/** Status of every account (Pomocnik API): suspension and the number of agent API keys. */
+export const getAccountStatusFn = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<{ statuses: t.AccountStatus[] }> => {
+    const response = await apiFetch('/api/admin/users/pomocnik');
+    if (!response.ok) {
+      await extractApiError(response, 'Failed to fetch account status');
+    }
+    const json = (await response.json()) as { users: t.AccountStatus[] };
+    return { statuses: json.users ?? [] };
+  },
+);
+
+export const accountStatusQueryOptions = queryOptions({
+  queryKey: ['users', 'status'],
+  queryFn: () => getAccountStatusFn().then((r) => r.statuses),
+  staleTime: 30_000,
+});
+
+/** POSTs/PATCHes a Pomocnik account endpoint and returns its JSON reply. */
+async function accountRequest<T>(path: string, method: string, body: object, fallback: string): Promise<T> {
+  const response = await apiFetch(path, { method, body: JSON.stringify(body) });
+  if (!response.ok) {
+    await extractApiError(response, fallback);
+  }
+  return (await response.json()) as T;
+}
+
+const userPath = (id: string, action = '') =>
+  `/api/admin/users/${encodeURIComponent(id)}${action ? `/${action}` : ''}`;
+
 export const createUserFn = createServerFn({ method: 'POST' })
   .validator(
     z.object({
@@ -41,9 +74,40 @@ export const createUserFn = createServerFn({ method: 'POST' })
       role: z.nativeEnum(SystemRoles),
     }),
   )
-  .handler(async (): Promise<{ user: TUser }> => {
-    throw new Error('Not implemented: createUserFn');
-  });
+  .handler(async ({ data }): Promise<t.AccountWithPassword> =>
+    accountRequest('/api/admin/users', 'POST', data, 'Failed to create user'),
+  );
+
+export const updateUserFn = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      id: z.string(),
+      name: z.string().min(1).optional(),
+      email: z.string().email().optional(),
+      role: z.nativeEnum(SystemRoles).optional(),
+    }),
+  )
+  .handler(async ({ data: { id, ...changes } }): Promise<{ user: t.AccountStatus }> =>
+    accountRequest(userPath(id), 'PATCH', changes, 'Failed to update user'),
+  );
+
+export const resetPasswordFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }): Promise<t.AccountWithPassword> =>
+    accountRequest(userPath(data.id, 'password'), 'POST', {}, 'Failed to reset the password'),
+  );
+
+export const suspendUserFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }): Promise<{ user: t.AccountStatus; apiKeysDeleted: number }> =>
+    accountRequest(userPath(data.id, 'suspend'), 'POST', {}, 'Failed to suspend the user'),
+  );
+
+export const unsuspendUserFn = createServerFn({ method: 'POST' })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }): Promise<{ user: t.AccountStatus }> =>
+    accountRequest(userPath(data.id, 'unsuspend'), 'POST', {}, 'Failed to unsuspend the user'),
+  );
 
 /** The admin users API's reply when the user to delete no longer exists. */
 const USER_NOT_FOUND_ERROR = 'User not found';

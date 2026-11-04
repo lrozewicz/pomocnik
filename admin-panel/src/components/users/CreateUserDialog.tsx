@@ -6,6 +6,7 @@ import { notifySuccess, notifyError } from '@/utils';
 import { FormDialog } from '@/components/shared';
 import { createUserFn } from '@/server';
 import { useLocalize } from '@/hooks';
+import { PasswordDialog } from './PasswordDialog';
 
 export function CreateUserDialog({ open, onClose }: t.CreateUserDialogProps) {
   const localize = useLocalize();
@@ -14,15 +15,15 @@ export function CreateUserDialog({ open, onClose }: t.CreateUserDialogProps) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<SystemRoles>(SystemRoles.USER);
   const [error, setError] = useState('');
+  const [created, setCreated] = useState<t.AccountWithPassword | null>(null);
 
   const mutation = useMutation({
-    mutationFn: async ({ name: submittedName }: { name: string }) => {
-      await createUserFn({ data: { name: submittedName, email, role } });
-      return { name: submittedName };
-    },
-    onSuccess: (data) => {
+    mutationFn: ({ name: submittedName }: { name: string }) =>
+      createUserFn({ data: { name: submittedName.trim(), email: email.trim(), role } }),
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      notifySuccess(localize('com_toast_user_invited', { name: data.name }));
+      notifySuccess(localize('com_toast_user_created', { name: result.user.name }));
+      setCreated(result);
       resetAndClose();
     },
     onError: (err: Error) => notifyError(err.message),
@@ -50,6 +51,13 @@ export function CreateUserDialog({ open, onClose }: t.CreateUserDialogProps) {
   };
 
   return (
+    <>
+    <PasswordDialog
+      password={created?.password ?? null}
+      email={created?.user.email ?? ''}
+      title={localize('com_users_created_title')}
+      onClose={() => setCreated(null)}
+    />
     <FormDialog
       open={open}
       title={localize('com_users_add')}
@@ -102,5 +110,6 @@ export function CreateUserDialog({ open, onClose }: t.CreateUserDialogProps) {
         </select>
       </div>
     </FormDialog>
+    </>
   );
 }

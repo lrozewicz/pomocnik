@@ -27,6 +27,11 @@ export interface UserRowProps {
   onViewDetails: () => void;
   onDelete: () => void;
   canManage: boolean;
+  /** Pomocnik: the account is suspended (sign-in and chat blocked). */
+  suspended: boolean;
+  onEdit: () => void;
+  onResetPassword: () => void;
+  onToggleSuspend: () => void;
 }
 
 export type RemoveTarget =
@@ -90,4 +95,35 @@ export interface PickerSectionProps {
   emptyLabel: string;
   busy: boolean;
   onSelect: (id: string) => void;
+}
+
+/** Pomocnik account status (GET /api/admin/users/pomocnik and the account endpoints). */
+export interface AccountStatus {
+  id: string;
+  email: string;
+  name: string;
+  username?: string;
+  role: string;
+  createdAt?: string;
+  suspended: boolean;
+  apiKeys?: number;
+}
+
+/** Reply of create / password reset: the account and its password, shown to the admin once. */
+export interface AccountWithPassword {
+  user: AccountStatus;
+  password: string;
+}
+
+export interface PasswordDialogProps {
+  /** The password to show; null closes the dialog. */
+  password: string | null;
+  email: string;
+  title: string;
+  onClose: () => void;
+}
+
+export interface EditUserDialogProps {
+  user: TUser | null;
+  onClose: () => void;
 }

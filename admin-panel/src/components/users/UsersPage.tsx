@@ -5,8 +5,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TUser } from 'librechat-data-provider';
 import type * as t from '@/types';
 import {
+  accountStatusQueryOptions,
   availableScopesOptions,
   deleteUserFn,
+  resetPasswordFn,
+  suspendUserFn,
+  unsuspendUserFn,
   groupAssignmentsQueryOptions,
   roleAssignmentsQueryOptions,
   usersQueryOptions,
@@ -24,6 +28,8 @@ import { SystemCapabilities, USER_DELETE_UNAVAILABLE } from '@/constants';
 import { cn, errorText, notifySuccess, notifyError } from '@/utils';
 import { CreateUserDialog } from './CreateUserDialog';
 import { UserDetailDialog } from './UserDetailDialog';
+import { EditUserDialog } from './EditUserDialog';
+import { PasswordDialog } from './PasswordDialog';
 import { ConfirmDialog } from '@/components/access';
 
 const ROLE_FILTER_LABELS: Record<t.RoleFilter, string> = {
@@ -46,12 +52,21 @@ export function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TUser | null>(null);
   const [detailUser, setDetailUser] = useState<TUser | null>(null);
+  const [editUser, setEditUser] = useState<TUser | null>(null);
+  const [suspendTarget, setSuspendTarget] = useState<TUser | null>(null);
+  const [resetTarget, setResetTarget] = useState<TUser | null>(null);
+  const [newPassword, setNewPassword] = useState<t.AccountWithPassword | null>(null);
   const { message: announcement, announce } = useAnnouncement();
 
   const { data: users = [], isLoading } = useQuery(usersQueryOptions);
   const { data: roleAssignments = {} } = useQuery(roleAssignmentsQueryOptions);
   const { data: groupAssignments = {} } = useQuery(groupAssignmentsQueryOptions);
   const { data: allScopes = [] } = useQuery(availableScopesOptions);
+  const { data: statuses = [] } = useQuery(accountStatusQueryOptions);
+  const suspendedIds = useMemo(
+    () => new Set(statuses.filter((s) => s.suspended).map((s) => s.id)),
+    [statuses],
+  );
 
   const userProfileSet = useMemo(() => {
     const set = new Set<string>();
@@ -79,6 +94,32 @@ export function UsersPage() {
           ? localize('com_users_delete_unavailable')
           : errorText(err, localize('com_users_delete_failed'), localize),
       ),
+  });
+
+  const suspendMutation = useMutation({
+    mutationFn: (user: TUser) =>
+      suspendedIds.has(user.id)
+        ? unsuspendUserFn({ data: { id: user.id } })
+        : suspendUserFn({ data: { id: user.id } }),
+    onSuccess: (result, user) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      notifySuccess(
+        localize(result.user.suspended ? 'com_toast_user_suspended' : 'com_toast_user_unsuspended', {
+          name: user.name,
+        }),
+      );
+      setSuspendTarget(null);
+    },
+    onError: (err: Error) => notifyError(err.message),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: (user: TUser) => resetPasswordFn({ data: { id: user.id } }),
+    onSuccess: (result) => {
+      setResetTarget(null);
+      setNewPassword(result);
+    },
+    onError: (err: Error) => notifyError(err.message),
   });
 
   const applyFilters = (list: TUser[], q: string, role: t.RoleFilter) =>
@@ -193,6 +234,12 @@ export function UsersPage() {
                   onViewDetails={() => setDetailUser(user)}
                   onDelete={() => setDeleteTarget(user)}
                   canManage={canManage}
+                  suspended={suspendedIds.has(user.id)}
+                  onEdit={() => setEditUser(user)}
+                  onResetPassword={() => setResetTarget(user)}
+                  onToggleSuspend={() =>
+                    suspendedIds.has(user.id) ? suspendMutation.mutate(user) : setSuspendTarget(user)
+                  }
                 />
               ))}
               {filtered.length === 0 && (
@@ -234,6 +281,40 @@ export function UsersPage() {
         onCancel={() => setDeleteTarget(null)}
       />
 
+      <EditUserDialog user={editUser} onClose={() => setEditUser(null)} />
+
+      <ConfirmDialog
+        open={!!suspendTarget}
+        title={localize('com_users_suspend_title')}
+        description={localize('com_users_suspend_desc', { name: suspendTarget?.name ?? '' })}
+        confirmLabel={localize('com_users_suspend')}
+        saving={suspendMutation.isPending}
+        onConfirm={() => {
+          if (suspendTarget) suspendMutation.mutate(suspendTarget);
+        }}
+        onCancel={() => setSuspendTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!resetTarget}
+        title={localize('com_users_reset_password_title')}
+        description={localize('com_users_reset_password_desc', { name: resetTarget?.name ?? '' })}
+        confirmLabel={localize('com_users_reset_password')}
+        confirmType="primary"
+        saving={resetMutation.isPending}
+        onConfirm={() => {
+          if (resetTarget) resetMutation.mutate(resetTarget);
+        }}
+        onCancel={() => setResetTarget(null)}
+      />
+
+      <PasswordDialog
+        password={newPassword?.password ?? null}
+        email={newPassword?.user.email ?? ''}
+        title={localize('com_users_password_reset_done')}
+        onClose={() => setNewPassword(null)}
+      />
+
       <ScreenReaderAnnouncer message={announcement} />
     </div>
   );
@@ -248,6 +329,10 @@ function UserRow({
   onViewDetails,
   onDelete,
   canManage,
+  suspended,
+  onEdit,
+  onResetPassword,
+  onToggleSuspend,
 }: t.UserRowProps) {
   const localize = useLocalize();
 
@@ -255,6 +340,17 @@ function UserRow({
     { label: localize('com_users_view_details'), icon: 'user', onClick: onViewDetails },
     ...(canManage
       ? [
+          { label: localize('com_users_edit'), icon: 'pencil', onClick: onEdit } as t.KebabMenuItem,
+          {
+            label: localize('com_users_reset_password'),
+            icon: 'key',
+            onClick: onResetPassword,
+          } as t.KebabMenuItem,
+          {
+            label: localize(suspended ? 'com_users_unsuspend' : 'com_users_suspend'),
+            icon: suspended ? 'play' : 'pause',
+            onClick: onToggleSuspend,
+          } as t.KebabMenuItem,
           {
             label: localize('com_ui_delete'),
             icon: 'trash',
@@ -331,6 +427,11 @@ function UserRow({
         >
           {user.role}
         </span>
+        {suspended && (
+          <span className="ml-1.5 inline-block rounded-full bg-(--cui-color-background-danger) px-2 py-0.5 text-xs font-medium text-(--cui-color-text-danger)">
+            {localize('com_users_suspended')}
+          </span>
+        )}
       </td>
       <td className="px-4 py-3 text-(--cui-color-text-muted)">
         {new Date(user.createdAt).toLocaleDateString()}

@@ -27,7 +27,8 @@ vi.mock('@/server/utils/api', () => ({
   },
 }));
 
-vi.mock('@/server', () => vi.importActual('@/server/groups'));
+// Pomocnik: root-relative path; vitest does not resolve '@/server/groups' here (fails upstream too).
+vi.mock('@/server', () => vi.importActual('/src/server/groups.ts'));
 
 vi.mock('@/hooks', async () => ({
   useLocalize: () => (key: string, options?: Record<string, string | number>) =>
