@@ -19,6 +19,9 @@ Pliki upstreamu zostają bez zmian (łatwe dociąganie nowych wersji). Nasze są
 - `docker/pomocnik/librechat.yaml`: konfiguracja LibreChat wbudowana w obraz (`CONFIG_PATH`); bez sekretów,
   wartości `${VAR}` przychodzą ze zmiennych środowiskowych. Etap `test` sprawdza ją schematem upstreamu.
 - `docker/mongo/`: obraz `mongo` (MongoDB 8.0) i `dump-loop.sh` (codzienny `mongodump` do `/data/dump`).
+- `docker/browser/`: obraz `browser` (Playwright MCP, headless Chromium) — serwer MCP „Przeglądarka” dla agentów
+  (`librechat.yaml`, `mcpServers.browser`); osobny kontekst przeglądarki na użytkownika, ruch wychodzący
+  tylko do internetu (NetworkPolicy `egress: internet` w `platform-gitops`).
 - `.github/`: CI ze wspólnych workflowów `lrozewicz/.github` (workflowy upstreamu usunięte).
 
 ## Aktualizacja LibreChat

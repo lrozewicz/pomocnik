@@ -28,3 +28,23 @@ endpoints:
       # OpenRouter models use various stop tokens.
       dropParams: ['stop']
       modelDisplayLabel: 'OpenRouter'
+
+# MCP: the "browser" component (docker/browser, Playwright MCP). Internal address, so it must be
+# trusted before LibreChat's private-IP (SSRF) check.
+mcpSettings:
+  allowedAddresses:
+    - 'browser:8931'
+
+mcpServers:
+  browser:
+    title: 'Przeglądarka'
+    description: 'Przeglądarka internetowa (Playwright): otwieranie stron, klikanie, wypełnianie formularzy, zrzuty ekranu.'
+    type: streamable-http
+    url: 'http://browser:8931/mcp'
+    # A per-user placeholder makes LibreChat open one MCP connection per user (not a shared app
+    # connection); the server gives every connection its own in-memory browser context.
+    headers:
+      X-Pomocnik-User: '{{LIBRECHAT_USER_ID}}'
+    initTimeout: 30000
+    timeout: 120000
+    serverInstructions: true
