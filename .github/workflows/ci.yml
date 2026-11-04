@@ -1,0 +1,43 @@
+# CI/CD: shared workflows from github.com/lrozewicz/.github
+#   pull request     -> tests, image build, Trivy
+#   push to main     -> build, push to Harbor, deploy to pomocnik.dev.lucasnextgen.com
+#   tag v1.2.3       -> promote the same images, deploy to pomocnik.lucasnextgen.com
+# Two images, one tag: api (LibreChat, docker/pomocnik/Dockerfile) and mongo (docker/mongo/Dockerfile).
+# The upstream LibreChat workflows were removed (they would run in this repo and use its Actions minutes).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    if: github.event_name == 'pull_request'
+    uses: lrozewicz/.github/.github/workflows/pr.yml@main
+    with:
+      images: |
+        [
+          {"name": "api", "context": ".", "dockerfile": "docker/pomocnik/Dockerfile"},
+          {"name": "mongo", "context": "docker/mongo", "dockerfile": "docker/mongo/Dockerfile", "test": false}
+        ]
+
+  deploy:
+    if: github.event_name == 'push'
+    uses: lrozewicz/.github/.github/workflows/deploy.yml@main
+    with:
+      environment: ${{ github.ref_type == 'tag' && 'prod' || 'dev' }}
+      images: |
+        [
+          {"name": "api", "context": ".", "dockerfile": "docker/pomocnik/Dockerfile"},
+          {"name": "mongo", "context": "docker/mongo", "dockerfile": "docker/mongo/Dockerfile", "test": false}
+        ]
+    secrets:
+      HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+      HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+      GITOPS_APP_PRIVATE_KEY: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
