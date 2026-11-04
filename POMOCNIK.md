@@ -22,6 +22,17 @@ Pliki upstreamu zostają bez zmian (łatwe dociąganie nowych wersji). Nasze są
   (lista, tworzenie, reset hasła, zawieszanie, rola, nazwa, e-mail, usuwanie); uruchamia go
   `ovh-infra/scripts/pomocnik/users.sh`. Zawieszenie = ban bez terminu (wymaga `BAN_VIOLATIONS=true`).
 - `docker/mongo/`: obraz `mongo` (MongoDB 8.0) i `dump-loop.sh` (codzienny `mongodump` do `/data/dump`).
+- `docker/browser/`: obraz `browser` (Playwright MCP, headless Chromium) — serwer MCP „Przeglądarka” dla agentów
+  (`librechat.yaml`, `mcpServers.browser`); osobny kontekst przeglądarki na użytkownika, ruch wychodzący
+  tylko do internetu (NetworkPolicy `egress: internet` w `platform-gitops`).
+- `admin-panel/` + `docker/admin-panel/`: LibreChat Admin Panel (AGPL-3.0) jako `git subtree` z
+  LibreChat-AI/admin-panel (ba88991), budowany ze źródeł: role, grupy, uprawnienia, konfiguracja per
+  rola/grupa oraz nasza strona **Users** (tworzenie z hasłem pokazanym raz, edycja, reset hasła,
+  zawieszanie, usuwanie). Backend: `api/server/routes/admin/pomocnikUsers.js` +
+  `api/server/services/Pomocnik/userAdmin.js` (te same operacje co CLI `pomocnik-users.js`).
+  Osobny host `pomocnik-admin[.dev].lucasnextgen.com`, logowanie kontem admina LibreChat.
+  Aktualizacja panelu: `git subtree pull --prefix=admin-panel https://github.com/LibreChat-AI/admin-panel.git <commit> --squash`.
+  Przy aktualizacji LibreChat podnieś też commit panelu zgodny z nową wersją pakietów `librechat-data-provider`.
 - `.github/`: CI ze wspólnych workflowów `lrozewicz/.github` (workflowy upstreamu usunięte).
 
 ## Aktualizacja LibreChat
@@ -34,6 +45,11 @@ git merge v0.8.9            # konflikty zwykle tylko w .github/ (u nas usunięte
 docker build -f docker/pomocnik/Dockerfile --target test .   # m.in. walidacja librechat.yaml
 # sprawdź UPGRADING.md i wersję w librechat.example.yaml (pole version), potem PR do main
 ```
+
+Po każdej aktualizacji sprawdź na dev izolację przeglądarki (zależy od tego, jak LibreChat traktuje
+`{{LIBRECHAT_USER_ID}}` w `mcpServers.browser.headers`: osobne połączenie MCP na użytkownika):
+agent użytkownika A otwiera `https://httpbin.org/cookies/set?owner=A`, potem agent użytkownika B
+otwiera `https://httpbin.org/cookies` i ma zobaczyć `{}`; A w kolejnej wiadomości nadal widzi `owner=A`.
 
 ## API z zewnątrz
 
