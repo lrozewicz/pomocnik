@@ -35,6 +35,11 @@ docker build -f docker/pomocnik/Dockerfile --target test .   # m.in. walidacja l
 # sprawdź UPGRADING.md i wersję w librechat.example.yaml (pole version), potem PR do main
 ```
 
+Po każdej aktualizacji sprawdź na dev izolację przeglądarki (zależy od tego, jak LibreChat traktuje
+`{{LIBRECHAT_USER_ID}}` w `mcpServers.browser.headers`: osobne połączenie MCP na użytkownika):
+agent użytkownika A otwiera `https://httpbin.org/cookies/set?owner=A`, potem agent użytkownika B
+otwiera `https://httpbin.org/cookies` i ma zobaczyć `{}`; A w kolejnej wiadomości nadal widzi `owner=A`.
+
 ## API z zewnątrz
 
 LibreChat udostępnia agentów przez API zgodne z OpenAI (agent = `model`):
