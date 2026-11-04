@@ -73,6 +73,9 @@ RUN cd packages/data-provider && npx jest --ci --silent
 RUN node docker/pomocnik/check-config.cjs docker/pomocnik/librechat.yaml
 
 FROM base-min AS runtime
+# npm bundled with the node image (11.13) ships a tar with a CRITICAL fix available (Trivy gate);
+# npm stays in the image for npx-based MCP servers.
+RUN npm install -g npm@11.21.1 --no-audit --no-fund && rm -rf /root/.npm
 COPY --from=ghcr.io/astral-sh/uv:0.9.5-python3.12-alpine /usr/local/bin/uv /usr/local/bin/uvx /bin/
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force && rm -rf /root/.npm
 COPY api ./api
