@@ -18,6 +18,9 @@ Pliki upstreamu zostają bez zmian (łatwe dociąganie nowych wersji). Nasze są
   dane w `/data`: `uploads`, `images`).
 - `docker/pomocnik/librechat.yaml`: konfiguracja LibreChat wbudowana w obraz (`CONFIG_PATH`); bez sekretów,
   wartości `${VAR}` przychodzą ze zmiennych środowiskowych. Etap `test` sprawdza ją schematem upstreamu.
+- `docker/pomocnik/pomocnik-users.js`: administracja kontami, której LibreChat 0.8.8 nie ma w UI ani w API
+  (lista, tworzenie, reset hasła, zawieszanie, rola, nazwa, e-mail, usuwanie); uruchamia go
+  `ovh-infra/scripts/pomocnik/users.sh`. Zawieszenie = ban bez terminu (wymaga `BAN_VIOLATIONS=true`).
 - `docker/mongo/`: obraz `mongo` (MongoDB 8.0) i `dump-loop.sh` (codzienny `mongodump` do `/data/dump`).
 - `.github/`: CI ze wspólnych workflowów `lrozewicz/.github` (workflowy upstreamu usunięte).
 

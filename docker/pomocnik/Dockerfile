@@ -86,6 +86,8 @@ COPY --from=data-schemas-build /app/packages/data-schemas/dist ./packages/data-s
 COPY --from=api-package-build /app/packages/api/dist ./packages/api/dist
 COPY --from=client-build /app/client/dist ./client/dist
 COPY docker/pomocnik/librechat.yaml /app/pomocnik/librechat.yaml
+# User administration (create, suspend, delete, ...): ovh-infra/scripts/pomocnik/users.sh runs it in the pod.
+COPY docker/pomocnik/pomocnik-users.js /app/config/pomocnik-users.js
 # Read-only root filesystem: everything LibreChat writes goes to /data (volume) or /tmp.
 RUN rm -rf /app/uploads /app/client/public/images /app/data && \
     mkdir -p /app/client/public && \
