@@ -31,6 +31,7 @@ import ChatTitleInTab from '../SettingsTabs/General/ChatTitleInTab';
 import AdvancedPrompts from '../SettingsTabs/Chat/AdvancedPrompts';
 import DuringRunAction from '../SettingsTabs/Chat/DuringRunAction';
 import DeleteAccount from '../SettingsTabs/Account/DeleteAccount';
+import ChangePassword from '../SettingsTabs/Account/ChangePassword';
 import StatefulWorkspaceDefault from './StatefulWorkspaceDefault';
 import { ForkSettings } from '../SettingsTabs/Chat/ForkSettings';
 import ChatDirection from '../SettingsTabs/Chat/ChatDirection';
@@ -710,6 +711,16 @@ export const registry: SettingEntry[] = [
     Component: Avatar,
   },
   // Account · Security
+  {
+    // Pomocnik: own password change (local accounts only).
+    id: 'changePassword',
+    tab: ACCOUNT,
+    section: 'security',
+    labelKey: 'com_ui_settings_label_change_password',
+    keywords: ['password', 'hasło'],
+    show: (ctx) => ctx.isLocalProvider,
+    Component: ChangePassword,
+  },
   {
     id: 'twoFactor',
     tab: ACCOUNT,
