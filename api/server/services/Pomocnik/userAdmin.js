@@ -35,9 +35,11 @@ const DELETE_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Error with an HTTP status for the routes; the CLI prints the message. */
 class UserAdminError extends Error {
-  constructor(status, message) {
+  /** code: stable identifier the client can match on (the message is English text). */
+  constructor(status, message, code) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -212,11 +214,19 @@ async function changeOwnPassword({ userId, currentPassword, newPassword, keepSes
   const matches =
     typeof currentPassword === 'string' && (await bcrypt.compare(currentPassword, user.password));
   if (!matches) {
-    throw new UserAdminError(400, 'The current password is incorrect');
+    throw new UserAdminError(
+      400,
+      'The current password is incorrect',
+      'CURRENT_PASSWORD_INCORRECT',
+    );
   }
   checkPassword(newPassword);
   if (newPassword === currentPassword) {
-    throw new UserAdminError(400, 'The new password must differ from the current one');
+    throw new UserAdminError(
+      400,
+      'The new password must differ from the current one',
+      'SAME_PASSWORD',
+    );
   }
   const hash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
   await User.updateOne({ _id: user._id }, { $set: { password: hash } });

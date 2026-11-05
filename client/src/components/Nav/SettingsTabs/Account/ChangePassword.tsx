@@ -25,7 +25,9 @@ const MIN_LENGTH = 8;
 const MAX_LENGTH = 128;
 
 type ChangePasswordBody = { currentPassword: string; newPassword: string };
-type ChangePasswordError = { response?: { status?: number; data?: { error?: string } } };
+type ChangePasswordError = {
+  response?: { status?: number; data?: { error?: string; code?: string } };
+};
 
 export const changePassword = (body: ChangePasswordBody): Promise<{ otherSessionsEnded: number }> =>
   request.post(`${apiBaseUrl()}/api/pomocnik/account/password`, body);
@@ -54,12 +56,12 @@ const ChangePassword = () => {
     },
     onError: (err: ChangePasswordError) => {
       const status = err.response?.status;
-      const message = err.response?.data?.error ?? '';
+      const code = err.response?.data?.code;
       if (status === 429) {
         setError(localize('com_pomocnik_password_too_many'));
-      } else if (message.includes('current password is incorrect')) {
+      } else if (code === 'CURRENT_PASSWORD_INCORRECT') {
         setError(localize('com_pomocnik_password_current_wrong'));
-      } else if (message.includes('must differ')) {
+      } else if (code === 'SAME_PASSWORD') {
         setError(localize('com_pomocnik_password_same'));
       } else {
         setError(localize('com_pomocnik_password_failed'));

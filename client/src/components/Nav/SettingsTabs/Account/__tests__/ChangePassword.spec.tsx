@@ -76,7 +76,10 @@ describe('ChangePassword', () => {
 
   it('shows a wrong current password without closing', async () => {
     mockPost.mockRejectedValue({
-      response: { status: 400, data: { error: 'The current password is incorrect' } },
+      response: {
+        status: 400,
+        data: { error: 'The current password is incorrect', code: 'CURRENT_PASSWORD_INCORRECT' },
+      },
     });
     await openDialog();
     await fill('bad-password', 'new-password-1', 'new-password-1');

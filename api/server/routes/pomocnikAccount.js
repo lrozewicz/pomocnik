@@ -3,6 +3,7 @@
  * local accounts; its reset by email is off without SMTP). Used by Settings > Account.
  *
  *   POST /api/pomocnik/account/password   {currentPassword, newPassword} -> {otherSessionsEnded}
+ *   errors: {error, code?}; code CURRENT_PASSWORD_INCORRECT or SAME_PASSWORD (both 400)
  *
  * Other sessions are logged out; this one (the refresh token cookie) stays signed in.
  */
@@ -42,7 +43,7 @@ router.post('/password', requireJwtAuth, limiter, async (req, res) => {
     return res.status(200).json(result);
   } catch (error) {
     if (error instanceof users.UserAdminError) {
-      return res.status(error.status).json({ error: error.message });
+      return res.status(error.status).json({ error: error.message, code: error.code });
     }
     logger.error('[PomocnikAccount] password change failed:', error);
     return res.status(500).json({ error: 'Changing the password failed' });
