@@ -2,7 +2,9 @@
 #   pull request     -> tests, image build, Trivy
 #   push to main     -> build, push to Harbor, deploy to pomocnik.dev.lucasnextgen.com
 #   tag v1.2.3       -> promote the same images, deploy to pomocnik.lucasnextgen.com
-# Two images, one tag: api (LibreChat, docker/pomocnik/Dockerfile) and mongo (docker/mongo/Dockerfile).
+# Four images, one tag: api (LibreChat, docker/pomocnik/Dockerfile), mongo (docker/mongo/Dockerfile),
+# browser (Playwright MCP for agents, docker/browser/Dockerfile) and admin-panel (LibreChat Admin
+# Panel built from admin-panel/ with the Users page, docker/admin-panel/Dockerfile).
 # The upstream LibreChat workflows were removed (they would run in this repo and use its Actions minutes).
 name: CI
 
@@ -24,7 +26,9 @@ jobs:
       images: |
         [
           {"name": "api", "context": ".", "dockerfile": "docker/pomocnik/Dockerfile"},
-          {"name": "mongo", "context": "docker/mongo", "dockerfile": "docker/mongo/Dockerfile", "test": false}
+          {"name": "mongo", "context": "docker/mongo", "dockerfile": "docker/mongo/Dockerfile", "test": false},
+          {"name": "browser", "context": "docker/browser", "dockerfile": "docker/browser/Dockerfile", "test": false},
+          {"name": "admin-panel", "context": "admin-panel", "dockerfile": "docker/admin-panel/Dockerfile"}
         ]
 
   deploy:
@@ -35,7 +39,9 @@ jobs:
       images: |
         [
           {"name": "api", "context": ".", "dockerfile": "docker/pomocnik/Dockerfile"},
-          {"name": "mongo", "context": "docker/mongo", "dockerfile": "docker/mongo/Dockerfile", "test": false}
+          {"name": "mongo", "context": "docker/mongo", "dockerfile": "docker/mongo/Dockerfile", "test": false},
+          {"name": "browser", "context": "docker/browser", "dockerfile": "docker/browser/Dockerfile", "test": false},
+          {"name": "admin-panel", "context": "admin-panel", "dockerfile": "docker/admin-panel/Dockerfile"}
         ]
     secrets:
       HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
