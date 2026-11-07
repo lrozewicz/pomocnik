@@ -22,14 +22,24 @@ const getLogStores = require('~/cache/getLogStores');
 const db = require('~/models');
 
 const ROLES = [SystemRoles.USER, SystemRoles.ADMIN];
-const DELETE_USER_SCRIPT = path.resolve(__dirname, '..', '..', '..', '..', 'config', 'delete-user.js');
+const DELETE_USER_SCRIPT = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  '..',
+  'config',
+  'delete-user.js',
+);
 const DELETE_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Error with an HTTP status for the routes; the CLI prints the message. */
 class UserAdminError extends Error {
-  constructor(status, message) {
+  /** code: stable identifier the client can match on (the message is English text). */
+  constructor(status, message, code) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -104,7 +114,9 @@ async function listSuspendedIds(ids) {
 
 async function listUsers() {
   const { User, AgentApiKey } = models();
-  const users = await User.find({}, 'email name username role createdAt').sort({ createdAt: 1 }).lean();
+  const users = await User.find({}, 'email name username role createdAt')
+    .sort({ createdAt: 1 })
+    .lean();
   return Promise.all(
     users.map(async (u) => ({
       id: u._id.toString(),
@@ -149,7 +161,11 @@ async function createUser({ email, name, role = SystemRoles.USER, password }) {
     throw new UserAdminError(409, 'A user with this email already exists');
   }
   const { registerUser } = require('~/server/services/AuthService');
-  const base = cleanEmail.split('@')[0].replace(/[^a-z0-9._-]/g, '').slice(0, 30) || 'user';
+  const base =
+    cleanEmail
+      .split('@')[0]
+      .replace(/[^a-z0-9._-]/g, '')
+      .slice(0, 30) || 'user';
   const taken = await User.findOne({ username: base });
   const username = taken ? `${base}-${crypto.randomBytes(2).toString('hex')}` : base;
   const result = await registerUser(
@@ -157,7 +173,10 @@ async function createUser({ email, name, role = SystemRoles.USER, password }) {
     { emailVerified: true },
   );
   if (result?.status && result.status !== 200) {
-    throw new UserAdminError(result.status >= 500 ? 500 : 400, result.message || 'Registration failed');
+    throw new UserAdminError(
+      result.status >= 500 ? 500 : 400,
+      result.message || 'Registration failed',
+    );
   }
   const user = await findUser({ email: cleanEmail });
   // The first account ever registered becomes ADMIN in LibreChat; set the requested role.
@@ -172,10 +191,54 @@ async function resetPassword({ id, email, password }) {
   const user = await findUser({ id, email });
   const pw = password ? checkPassword(password) : generatePassword();
   const hash = await bcrypt.hash(pw, await bcrypt.genSalt(10));
-  await User.updateOne({ _id: user._id }, { $set: { password: hash, passwordVersion: Date.now() } });
+  await User.updateOne({ _id: user._id }, { $set: { password: hash } });
   await logoutEverywhere(user._id);
   logger.info(`[PomocnikUsers] password reset for ${user.email}`);
   return { user, password: pw };
+}
+
+/**
+ * A user changes their own password: needs the current one, logs out every other session
+ * (keepSessionId = the session of this request, from its refresh token cookie).
+ */
+async function changeOwnPassword({ userId, currentPassword, newPassword, keepSessionId }) {
+  const { User } = models();
+  const user = await User.findById(userId).select('+password');
+  if (!user) {
+    throw new UserAdminError(404, 'User not found');
+  }
+  if (!user.password) {
+    throw new UserAdminError(400, 'This account signs in without a password');
+  }
+  // 400, not 401: the client treats 401 as an expired session and logs out.
+  const matches =
+    typeof currentPassword === 'string' && (await bcrypt.compare(currentPassword, user.password));
+  if (!matches) {
+    throw new UserAdminError(
+      400,
+      'The current password is incorrect',
+      'CURRENT_PASSWORD_INCORRECT',
+    );
+  }
+  checkPassword(newPassword);
+  if (newPassword === currentPassword) {
+    throw new UserAdminError(
+      400,
+      'The new password must differ from the current one',
+      'SAME_PASSWORD',
+    );
+  }
+  const hash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+  await User.updateOne({ _id: user._id }, { $set: { password: hash } });
+  const { deletedCount = 0 } =
+    (await db.deleteAllUserSessions(
+      { userId: user._id.toString() },
+      keepSessionId ? { excludeCurrentSession: true, currentSessionId: keepSessionId } : {},
+    )) ?? {};
+  logger.info(
+    `[PomocnikUsers] ${user.email} changed their password, ${deletedCount} other session(s) ended`,
+  );
+  return { otherSessionsEnded: deletedCount };
 }
 
 async function suspendUser({ id, email, actorId, reason = 'suspended by admin' }) {
@@ -281,7 +344,9 @@ async function deleteUser({ id, email, actorId }) {
   await new Promise((resolve) => setTimeout(resolve, 5000));
   const { code, output } = await runDeleteScript(user.email);
   if (code !== 0 || !output.includes('Successfully deleted user')) {
-    logger.error(`[PomocnikUsers] delete-user.js failed for ${user.email} (exit ${code}): ${output.slice(-2000)}`);
+    logger.error(
+      `[PomocnikUsers] delete-user.js failed for ${user.email} (exit ${code}): ${output.slice(-2000)}`,
+    );
     throw new UserAdminError(500, 'Deleting the user failed; the account stays suspended');
   }
   await banLogs().delete(user._id.toString());
@@ -311,6 +376,7 @@ module.exports = {
   listSuspendedIds,
   createUser,
   resetPassword,
+  changeOwnPassword,
   suspendUser,
   unsuspendUser,
   updateUser,

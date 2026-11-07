@@ -33,6 +33,12 @@ Pliki upstreamu zostają bez zmian (łatwe dociąganie nowych wersji). Nasze są
   Osobny host `pomocnik-admin[.dev].lucasnextgen.com`, logowanie kontem admina LibreChat.
   Aktualizacja panelu: `git subtree pull --prefix=admin-panel https://github.com/LibreChat-AI/admin-panel.git <commit> --squash`.
   Przy aktualizacji LibreChat podnieś też commit panelu zgodny z nową wersją pakietów `librechat-data-provider`.
+- Zmiana własnego hasła (LibreChat 0.8.8 jej nie ma, a reset mailem bez SMTP jest wyłączony):
+  *Settings → Account → Change password* (`client/.../SettingsTabs/Account/ChangePassword.tsx`,
+  wpis `changePassword` w `client/src/components/Nav/Settings/registry.tsx`) →
+  `POST /api/pomocnik/account/password` (`api/server/routes/pomocnikAccount.js`): wymaga obecnego hasła,
+  10 prób na 15 min, wylogowuje pozostałe sesje. Tylko konta lokalne. Teksty: klucze `com_pomocnik_*`
+  w `client/src/locales/{en,pl}/translation.json`.
 - `.github/`: CI ze wspólnych workflowów `lrozewicz/.github` (workflowy upstreamu usunięte).
 
 ## Aktualizacja LibreChat

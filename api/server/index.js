@@ -415,6 +415,7 @@ const startServer = async () => {
   app.use('/api/admin/users', routes.adminUsers);
   // Pomocnik: create, edit, suspend, delete accounts (LibreChat's admin users API only lists).
   app.use('/api/admin/users', require('./routes/admin/pomocnikUsers'));
+  app.use('/api/pomocnik/account', require('./routes/pomocnikAccount')); // own password change
   app.use('/api/admin/audit-log', routes.adminAuditLog);
   app.use('/api/actions', routes.actions);
   app.use('/api/keys', routes.keys);
