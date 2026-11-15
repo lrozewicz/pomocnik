@@ -23,6 +23,30 @@ const SECRETS_HEADER = 'x-pomocnik-secrets';
 const BLOCKED_TOOLS = new Set(['browser_evaluate', 'browser_run_code_unsafe']);
 const MAX_BODY = 1024 * 1024;
 
+/**
+ * Redacts an SSE stream event by event: a secret split across two chunks would pass a per-chunk
+ * redaction, so only complete events (up to the last blank line) are written; the rest waits.
+ */
+export function streamRedactor(values) {
+  const decoder = new TextDecoder();
+  let pending = '';
+  return {
+    push(chunk) {
+      pending += decoder.decode(chunk, { stream: true });
+      const cut = Math.max(pending.lastIndexOf('\n\n'), pending.lastIndexOf('\r\n\r\n'));
+      if (cut < 0) return '';
+      const ready = pending.slice(0, cut + 2);
+      pending = pending.slice(cut + 2);
+      return redact(ready, values);
+    },
+    end() {
+      const rest = pending + decoder.decode();
+      pending = '';
+      return redact(rest, values);
+    },
+  };
+}
+
 /** JSON-RPC messages in an MCP response body (JSON or SSE "data:" lines). */
 function parseMessages(body, contentType) {
   if ((contentType || '').includes('text/event-stream')) {
@@ -205,8 +229,9 @@ async function handle(req, res) {
         const headers = { ...up.headers };
         delete headers['content-length'];
         res.writeHead(up.statusCode, headers);
-        up.on('data', (c) => res.write(redact(c.toString('utf8'), secrets.values)));
-        up.on('end', () => res.end());
+        const redactor = streamRedactor(secrets.values);
+        up.on('data', (c) => res.write(redactor.push(c)));
+        up.on('end', () => res.end(redactor.end()));
       },
     );
     r.on('error', () => {

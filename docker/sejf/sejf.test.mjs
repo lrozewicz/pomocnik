@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDotenv, secretsFromHeader, redact } from './secrets.mjs';
-import { rewriteCall } from './sejf.mjs';
+import { rewriteCall, streamRedactor } from './sejf.mjs';
 
 const b64 = (s) => Buffer.from(s, 'utf8').toString('base64');
 const HEADER = b64(
@@ -111,4 +111,15 @@ test('rewriteCall: text that is not a secret name passes without a tab check', a
   });
   assert.equal(message, msg);
   assert.equal(checked, false);
+});
+
+test('streamRedactor: a secret split across chunks is still redacted', () => {
+  const { values } = secretsFromHeader(HEADER);
+  const v = values.PANEL_LOGIN;
+  const event = `event: message\ndata: {"text":"${v}"}\n\n`;
+  const cut = event.indexOf(v) + 3;
+  const r = streamRedactor(values);
+  const out = r.push(Buffer.from(event.slice(0, cut))) + r.push(Buffer.from(event.slice(cut))) + r.end();
+  assert.ok(!out.includes(v), out);
+  assert.ok(out.includes('<secret>PANEL_LOGIN</secret>'), out);
 });

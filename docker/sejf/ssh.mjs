@@ -33,11 +33,12 @@ export function hostsFromSecrets(values) {
     const alias = m[1].toLowerCase();
     const a = /^([^@\s]+)@([^:\s]+)(?::(\d+))?$/.exec(value.trim());
     const key = values[`SSH_${m[1]}_KEY`];
-    if (!a || !key) continue;
+    const port = a?.[3] ? Number(a[3]) : 22;
+    if (!a || !key || port < 1 || port > 65535) continue;
     hosts[alias] = {
       user: a[1],
       host: a[2],
-      port: a[3] ? Number(a[3]) : 22,
+      port,
       key: key.endsWith('\n') ? key : `${key}\n`,
       hostKey: values[`SSH_${m[1]}_HOSTKEY`] || '',
     };

@@ -13,6 +13,8 @@ const HEADER = b64(
     'SSH_NOWY_ADDR=jan@s2.mydevil.net:433',
     'SSH_NOWY_KEY="k2"',
     'SSH_BEZKLUCZA_ADDR=jan@s3.mydevil.net',
+    'SSH_ZLYPORT_ADDR=jan@s4.mydevil.net:99999',
+    'SSH_ZLYPORT_KEY=k4',
     'PANEL_HASLO=tajne123',
   ].join('\n'),
 );
@@ -24,11 +26,11 @@ test('isPublicName: settings, addresses and host keys are public', () => {
 
 test('secretsFromHeader: public names are not secrets', () => {
   const s = secretsFromHeader(HEADER);
-  assert.deepEqual(Object.keys(s.values).sort(), ['PANEL_HASLO', 'SSH_NOWY_KEY', 'SSH_STARY_KEY']);
+  assert.deepEqual(Object.keys(s.values).sort(), ['PANEL_HASLO', 'SSH_NOWY_KEY', 'SSH_STARY_KEY', 'SSH_ZLYPORT_KEY']);
   assert.equal(s.all.SSH_NOWY_ADDR, 'jan@s2.mydevil.net:433');
 });
 
-test('hostsFromSecrets: aliases, ports, keys; a host without a key is skipped', () => {
+test('hostsFromSecrets: aliases, ports, keys; no key or a bad port is skipped', () => {
   const hosts = hostsFromSecrets(secretsFromHeader(HEADER).all);
   assert.deepEqual(Object.keys(hosts).sort(), ['nowy', 'stary']);
   assert.equal(hosts.stary.port, 22);

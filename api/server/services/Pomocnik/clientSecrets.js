@@ -166,9 +166,12 @@ async function updateSecrets(userId, { set, remove } = {}) {
   if (encoded.length > MAX_ENCODED) {
     throw new SecretsError(400, `Too much data (${encoded.length} B encoded, max ${MAX_ENCODED})`);
   }
+  /** The first key is the source of truth (readValues): if a later write fails, that server
+   *  keeps old values until the next successful save rewrites all of them. */
   for (const pluginKey of PLUGIN_KEYS) {
     const result = await updateUserPluginAuth(userId, FIELD, pluginKey, encoded);
     if (result instanceof Error) {
+      logger.error(`[PomocnikSecrets] write to ${pluginKey} failed; it is stale until the next save`);
       throw result;
     }
   }
