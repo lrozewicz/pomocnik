@@ -371,6 +371,7 @@ async function toPublicUser(user) {
 module.exports = {
   ROLES,
   UserAdminError,
+  findUser,
   generatePassword,
   listUsers,
   listSuspendedIds,

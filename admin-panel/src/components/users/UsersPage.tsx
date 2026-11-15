@@ -30,6 +30,7 @@ import { CreateUserDialog } from './CreateUserDialog';
 import { UserDetailDialog } from './UserDetailDialog';
 import { EditUserDialog } from './EditUserDialog';
 import { PasswordDialog } from './PasswordDialog';
+import { SecretsDialog } from './SecretsDialog';
 import { ConfirmDialog } from '@/components/access';
 
 const ROLE_FILTER_LABELS: Record<t.RoleFilter, string> = {
@@ -53,6 +54,7 @@ export function UsersPage() {
   const [deleteTarget, setDeleteTarget] = useState<TUser | null>(null);
   const [detailUser, setDetailUser] = useState<TUser | null>(null);
   const [editUser, setEditUser] = useState<TUser | null>(null);
+  const [secretsUser, setSecretsUser] = useState<TUser | null>(null);
   const [suspendTarget, setSuspendTarget] = useState<TUser | null>(null);
   const [resetTarget, setResetTarget] = useState<TUser | null>(null);
   const [newPassword, setNewPassword] = useState<t.AccountWithPassword | null>(null);
@@ -237,6 +239,7 @@ export function UsersPage() {
                   suspended={suspendedIds.has(user.id)}
                   onEdit={() => setEditUser(user)}
                   onResetPassword={() => setResetTarget(user)}
+                  onSecrets={() => setSecretsUser(user)}
                   onToggleSuspend={() =>
                     suspendedIds.has(user.id) ? suspendMutation.mutate(user) : setSuspendTarget(user)
                   }
@@ -282,6 +285,7 @@ export function UsersPage() {
       />
 
       <EditUserDialog user={editUser} onClose={() => setEditUser(null)} />
+      <SecretsDialog user={secretsUser} onClose={() => setSecretsUser(null)} />
 
       <ConfirmDialog
         open={!!suspendTarget}
@@ -332,6 +336,7 @@ function UserRow({
   suspended,
   onEdit,
   onResetPassword,
+  onSecrets,
   onToggleSuspend,
 }: t.UserRowProps) {
   const localize = useLocalize();
@@ -346,6 +351,7 @@ function UserRow({
             icon: 'key',
             onClick: onResetPassword,
           } as t.KebabMenuItem,
+          { label: localize('com_users_secrets'), icon: 'lock', onClick: onSecrets } as t.KebabMenuItem,
           {
             label: localize(suspended ? 'com_users_unsuspend' : 'com_users_suspend'),
             icon: suspended ? 'play' : 'pause',

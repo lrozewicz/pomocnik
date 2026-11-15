@@ -31,6 +31,8 @@ export interface UserRowProps {
   suspended: boolean;
   onEdit: () => void;
   onResetPassword: () => void;
+  /** Pomocnik: the client's secrets for agents. */
+  onSecrets: () => void;
   onToggleSuspend: () => void;
 }
 
@@ -126,4 +128,23 @@ export interface PasswordDialogProps {
 export interface EditUserDialogProps {
   user: TUser | null;
   onClose: () => void;
+}
+
+/** Pomocnik client secrets: names of the secrets (values are write-only) and the settings. */
+export interface ClientSecrets {
+  names: string[];
+  settings: Record<string, string>;
+}
+
+export interface SecretsDialogProps {
+  user: TUser | null;
+  onClose: () => void;
+}
+
+export interface SecretRowProps {
+  name: string;
+  /** Shown for settings only; secrets are masked. */
+  value?: string;
+  removed: boolean;
+  onToggle: () => void;
 }
