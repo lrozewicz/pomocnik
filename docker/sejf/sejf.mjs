@@ -252,6 +252,13 @@ async function handle(req, res) {
 
   if (parsed?.method === 'initialize') logSession('sejf', req, secrets);
 
+  // JSON-RPC batches (dropped in MCP 2025-06-18): a tools/call inside one would skip the checks below.
+  if (Array.isArray(parsed) && parsed.some((m) => m?.method === 'tools/call')) {
+    res.writeHead(400, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Batched tools/call is not supported' } }));
+    return;
+  }
+
   if (parsed && !Array.isArray(parsed) && parsed.method === 'tools/call') {
     const { message, reply } = await rewriteCall(parsed, secrets, () => currentTabUrl(req));
     if (reply) {
