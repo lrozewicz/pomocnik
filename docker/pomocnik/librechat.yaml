@@ -29,11 +29,21 @@ endpoints:
       dropParams: ['stop']
       modelDisplayLabel: 'OpenRouter'
 
+# Memory: agents with the "Memory" tool and memory scope "agent" keep short notes per (user, agent)
+# (set_memory / delete_memory), added to the context of every new conversation. No memory agent:
+# nothing runs in the background after each message. Users see and edit them in Settings >
+# Personalization.
+memory:
+  tokenLimit: 4000
+  personalize: true
+
 # MCP: the "browser" component (docker/browser, Playwright MCP). Internal address, so it must be
 # trusted before LibreChat's private-IP (SSRF) check.
 mcpSettings:
   allowedAddresses:
     - 'browser:8931'
+    - 'sejf:8932'
+    - 'ssh:8933'
 
 mcpServers:
   browser:
@@ -47,4 +57,45 @@ mcpServers:
       X-Pomocnik-User: '{{LIBRECHAT_USER_ID}}'
     initTimeout: 30000
     timeout: 120000
+    serverInstructions: true
+
+  # The browser with a client's secrets (docker/sejf in front of "browser"): the agent types a
+  # password by its NAME, sejf substitutes the value on allowed pages (SEJF_ORIGINS) and redacts it
+  # from every response. The secrets are set by an admin (Admin Panel > Users > Secrets; API
+  # /api/admin/users/:id/secrets), stored encrypted per user; users cannot change them
+  # (api/server/services/Pomocnik/clientSecrets.js). Only for agents that need them, not in the chat menu.
+  sejf:
+    title: 'Przeglądarka z sejfem'
+    description: 'Przeglądarka, która wpisuje hasła klienta (podawane nazwą, np. PANEL_HASLO) tylko na dozwolonych stronach; model nie widzi haseł.'
+    type: streamable-http
+    url: 'http://sejf:8932/mcp'
+    headers:
+      X-Pomocnik-User: '{{LIBRECHAT_USER_ID}}'
+      X-Pomocnik-Secrets: '{{POMOCNIK_SECRETS}}'
+    customUserVars:
+      POMOCNIK_SECRETS:
+        title: 'Sejf (ustawia administrator)'
+        description: 'Dane dostępowe ustawia administrator Pomocnika.'
+    chatMenu: false
+    initTimeout: 30000
+    timeout: 120000
+    serverInstructions: true
+
+  # SSH to a client's servers (docker/sejf/ssh.mjs) with keys from the same admin-set secrets
+  # (SSH_<X>_ADDR / _KEY / _HOSTKEY); outputs redacted. Long timeout for ssh_copy (site migrations).
+  ssh:
+    title: 'Serwery SSH klienta'
+    description: 'Polecenia powłoki i kopiowanie plików między serwerami klienta przez SSH; klucze są poza zasięgiem modelu.'
+    type: streamable-http
+    url: 'http://ssh:8933/mcp'
+    headers:
+      X-Pomocnik-User: '{{LIBRECHAT_USER_ID}}'
+      X-Pomocnik-Secrets: '{{POMOCNIK_SECRETS}}'
+    customUserVars:
+      POMOCNIK_SECRETS:
+        title: 'Sejf (ustawia administrator)'
+        description: 'Dane dostępowe ustawia administrator Pomocnika.'
+    chatMenu: false
+    initTimeout: 30000
+    timeout: 1800000
     serverInstructions: true

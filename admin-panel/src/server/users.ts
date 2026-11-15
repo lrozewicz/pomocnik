@@ -144,3 +144,29 @@ export const searchUsersFn = createServerFn({ method: 'GET' })
     const json = (await response.json()) as { users: AdminUserSearchResult[] };
     return { users: json.users ?? [] };
   });
+
+// ── Client secrets (Pomocnik) ────────────────────────────────────────
+// Passwords and SSH keys an agent may use without the model seeing them (docker/sejf). The API
+// returns secret names only; values are write-only.
+
+export const getSecretsFn = createServerFn({ method: 'GET' })
+  .validator(z.object({ id: z.string() }))
+  .handler(async ({ data }): Promise<t.ClientSecrets> => {
+    const response = await apiFetch(userPath(data.id, 'secrets'));
+    if (!response.ok) {
+      await extractApiError(response, 'Failed to load secrets');
+    }
+    return (await response.json()) as t.ClientSecrets;
+  });
+
+export const updateSecretsFn = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      id: z.string(),
+      set: z.string().max(32_000).optional(),
+      remove: z.array(z.string()).max(200).optional(),
+    }),
+  )
+  .handler(async ({ data: { id, ...changes } }): Promise<t.ClientSecrets> =>
+    accountRequest(userPath(id, 'secrets'), 'PUT', changes, 'Failed to save secrets'),
+  );

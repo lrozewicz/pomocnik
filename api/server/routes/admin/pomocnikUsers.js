@@ -10,6 +10,9 @@
  *   POST   /api/admin/users/:id/suspend
  *   POST   /api/admin/users/:id/unsuspend
  *   DELETE /api/admin/users/:id               all of the user's data
+ *   GET    /api/admin/users/:id/secrets       {names, settings}: secret names only, never values
+ *   PUT    /api/admin/users/:id/secrets       {set?: dotenv text, remove?: [names]} (merge)
+ *   DELETE /api/admin/users/:id/secrets       all of the client's secrets
  *
  * A generated password is returned once and never stored in clear text.
  */
@@ -20,6 +23,7 @@ const { logger, SystemCapabilities } = require('@librechat/data-schemas');
 const { requireCapability } = require('~/server/middleware/roles/capabilities');
 const { requireJwtAuth } = require('~/server/middleware');
 const users = require('~/server/services/Pomocnik/userAdmin');
+const secrets = require('~/server/services/Pomocnik/clientSecrets');
 
 const router = express.Router();
 const requireReadUsers = requireCapability(SystemCapabilities.READ_USERS);
@@ -107,6 +111,49 @@ router.post(
   handle(async (req) => {
     const result = await users.unsuspendUser({ id: req.params.id });
     return { user: await users.toPublicUser(result.user) };
+  }),
+);
+
+/** Client secrets: names only (values are never returned), merge update, delete all. */
+const handleSecrets = (fn) => async (req, res) => {
+  try {
+    const user = await users.findUser({ id: req.params.id });
+    return res.status(200).json(await fn(user._id.toString(), req));
+  } catch (error) {
+    if (error instanceof users.UserAdminError || error instanceof secrets.SecretsError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    logger.error('[PomocnikUsers] secrets request failed:', error);
+    return res.status(500).json({ error: 'Secrets update failed' });
+  }
+};
+
+router.get(
+  '/:id/secrets',
+  requireManageUsers,
+  handleSecrets((userId) => secrets.getSecrets(userId)),
+);
+
+router.put(
+  '/:id/secrets',
+  requireManageUsers,
+  handleSecrets(async (userId, req) => {
+    const { set, remove } = req.body ?? {};
+    const result = await secrets.updateSecrets(userId, { set, remove });
+    logger.info(
+      `[PomocnikUsers] secrets of ${userId} changed by ${actorId(req)}: ${result.names.length} names`,
+    );
+    return result;
+  }),
+);
+
+router.delete(
+  '/:id/secrets',
+  requireManageUsers,
+  handleSecrets(async (userId, req) => {
+    await secrets.deleteSecrets(userId);
+    logger.info(`[PomocnikUsers] secrets of ${userId} deleted by ${actorId(req)}`);
+    return { names: [], settings: {} };
   }),
 );
 

@@ -39,6 +39,40 @@ Pliki upstreamu zostają bez zmian (łatwe dociąganie nowych wersji). Nasze są
   `POST /api/pomocnik/account/password` (`api/server/routes/pomocnikAccount.js`): wymaga obecnego hasła,
   10 prób na 15 min, wylogowuje pozostałe sesje. Tylko konta lokalne. Teksty: klucze `com_pomocnik_*`
   w `client/src/locales/{en,pl}/translation.json`.
+- `docker/sejf/`: obraz `sejf` — sekrety klienta dla agentów, których model nie widzi. Dwa składniki
+  z jednego obrazu (bez zależności npm):
+  - `sejf` (`sejf.mjs`): pośrednik MCP przed `browser` (serwer MCP „Przeglądarka z sejfem”). Agent wpisuje
+    nazwę sekretu (np. `PANEL_HASLO`) w `browser_type` / `browser_fill_form`; `sejf` podstawia wartość
+    tylko, gdy bieżąca karta jest na stronie z `SEJF_ORIGINS`, i zamienia każdą wartość w odpowiedziach na
+    `<secret>NAZWA</secret>` (także w zapisie JS, URL-encoded i do 4 poziomów escapowania JSON).
+    Wyłącza `browser_evaluate` i `browser_run_code_unsafe` (mogłyby odczytać wpisane pole).
+  - `ssh` (`ssh.mjs`, CMD `node /app/ssh.mjs`): serwer MCP „Serwery SSH klienta” — `ssh_hosts`, `ssh_run`,
+    `ssh_copy` (strumień tar między serwerami). Klucz i known_hosts tylko w katalogu tymczasowym na czas
+    wywołania; wyjście redagowane.
+  - Redakcja łapie znane zapisy wartości, nie dowolne przekształcenia (np. base64 na stronie).
+- Sekrety klienta: ustawia admin w Admin Panelu (*Users → ⋯ → Secrets*) albo
+  `GET/PUT/DELETE /api/admin/users/:id/secrets` (`PUT {set: "NAZWA=wartość\n…", remove: ["NAZWA"]}`,
+  GET zwraca tylko nazwy). Zapis: zmienna MCP użytkownika `POMOCNIK_SECRETS` (PluginAuth, szyfrowana
+  `CREDS_KEY`) dla serwerów `sejf` i `ssh` (`api/server/services/Pomocnik/clientSecrets.js`); LibreChat
+  wysyła ją w nagłówku `X-Pomocnik-Secrets` (base64 dotenv). Klient nie może jej zmienić ani usunąć
+  (`POST /api/user/plugins` → 403). Format:
+
+  ```
+  SEJF_ORIGINS=https://panel.mydevil.net https://panel.example.com   # gdzie wolno wpisać sekret
+  PANEL_HASLO=...                                                    # dowolne nazwy A-Z0-9_
+  SSH_STARY_ADDR=login@s1.mydevil.net         # serwer "stary" (port: login@host:433)
+  SSH_STARY_KEY="-----BEGIN OPENSSH PRIVATE KEY-----
+  ...
+  -----END OPENSSH PRIVATE KEY-----"
+  SSH_STARY_HOSTKEY=s1.mydevil.net ssh-ed25519 AAAA...   # linia known_hosts; bez niej brak ochrony przed MITM
+  WP_DB_HASLO=...    # opcjonalnie: wartość, która pojawi się w wynikach (np. wp-config.php), też zostanie ukryta
+  ```
+
+  Jawne (widoczne dla admina i modelu, nie redagowane): `SEJF_*`, `*_ADDR`, `*_HOSTKEY`; reszta to sekrety.
+  Agent dostaje narzędzia serwerów `sejf` / `ssh` w swojej konfiguracji (nie ma ich w menu czatu).
+- Pamięć agentów (`memory` w `librechat.yaml`): agent z narzędziem *Memory* i zakresem „agent” zapisuje
+  krótkie notatki per (użytkownik, agent) (`set_memory` / `delete_memory`), dołączane do kontekstu każdej
+  nowej rozmowy; limit 4000 tokenów. Bez agenta pamięci w tle.
 - `.github/`: CI ze wspólnych workflowów `lrozewicz/.github` (workflowy upstreamu usunięte).
 
 ## Aktualizacja LibreChat
